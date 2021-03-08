@@ -12,8 +12,12 @@ jobs:
     steps:
     - uses: actions/checkout@v1
 
-    - name: install mock
-      run: dnf --setopt=install_weak_deps=False install -y mock git
+    - name: install & configure mock
+      run: |
+        mkdir mock_cache
+        mkdir -p "$HOME/.config/"
+        echo config_opts[\'cache_topdir\'] = \"$(pwd)/mock_cache\" >> "$HOME/.config/mock.cfg"
+        dnf --setopt=install_weak_deps=False install -y mock git
 
     - name: build source RPM
       run: |
@@ -29,6 +33,12 @@ jobs:
       with:
         name: srpm_res
         path: ./srpm_res
+
+    - name: Cache mock cache
+      uses: actions/cache@v2
+      with:
+        path: mock_cache
+        key: "srpm_root"
 
   build_rpm:
     runs-on: ubuntu-latest
@@ -57,7 +67,11 @@ jobs:
         name: srpm_res
 
     - name: install mock
-      run: dnf --setopt=install_weak_deps=False install -y mock
+      run: |
+        mkdir mock_cache
+        mkdir -p "$HOME/.config/"
+        echo config_opts[\'cache_topdir\'] = \"$(pwd)/mock_cache\" >> "$HOME/.config/mock.cfg"
+        dnf --setopt=install_weak_deps=False install -y mock
 
     - name: build rpm
       run: mock -r /etc/mock/${{ matrix.target }}-x86_64.cfg --isolation=simple --resultdir=rpms/ *.src.rpm
@@ -67,3 +81,9 @@ jobs:
       with:
         name: phoebe-${{ matrix.target }}.x86_64.rpm.zip
         path: ./rpms/*.x86_64.rpm
+
+    - name: Cache mock cache
+      uses: actions/cache@v2
+      with:
+        path: mock_cache
+        key: rpm_root_${{ matrix.target }}
